@@ -60,6 +60,7 @@ class MP4MediaParser : public MediaParser {
 
   bool ParseBox(bool* err);
   bool ParseMoov(mp4::BoxReader* reader);
+  bool ParseSidx(mp4::BoxReader* reader);
   bool ParseMoof(mp4::BoxReader* reader);
 
   bool FetchKeysIfNecessary(
@@ -89,15 +90,20 @@ class MP4MediaParser : public MediaParser {
 
   OffsetByteQueue queue_;
 
-  // These two parameters are only valid in the |kEmittingSegments| state.
+  // These four parameters are only valid in the |kEmittingSegments| state.
   //
   // |moof_head_| is the offset of the start of the most recently parsed moof
   // block. All byte offsets in sample information are relative to this offset,
   // as mandated by the Media Source spec.
   int64_t moof_head_;
+  // |moof_count_| is the number of moof boxes seen in the MP4.
+  int64_t moof_count_;
   // |mdat_tail_| is the stream offset of the end of the current 'mdat' box.
   // Valid iff it is greater than the head of the queue.
   int64_t mdat_tail_;
+  // |segment_count_| is the number of segments in the MP4.
+  // Parsed from the size of the references field in the sidx box.
+  int64_t segment_count_;
 
   std::unique_ptr<Movie> moov_;
   std::unique_ptr<TrackRunIterator> runs_;

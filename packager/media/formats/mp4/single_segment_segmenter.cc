@@ -7,6 +7,7 @@
 #include "packager/media/formats/mp4/single_segment_segmenter.h"
 
 #include <algorithm>
+#include <fstream>
 
 #include "packager/file/file.h"
 #include "packager/file/file_util.h"
@@ -23,7 +24,7 @@ namespace mp4 {
 SingleSegmentSegmenter::SingleSegmentSegmenter(const MuxerOptions& options,
                                                std::unique_ptr<FileType> ftyp,
                                                std::unique_ptr<Movie> moov)
-    : Segmenter(options, std::move(ftyp), std::move(moov)) {}
+    : Segmenter(options, std::move(ftyp), std::move(moov)), first_segment_(true) {}
 
 SingleSegmentSegmenter::~SingleSegmentSegmenter() {
   if (temp_file_)
@@ -101,67 +102,18 @@ Status SingleSegmentSegmenter::DoFinalize() {
             ", possibly file permission issue or running out of disk space.");
   }
 
-  std::unique_ptr<File, FileCloser> file(
-      File::Open(options().output_file_name.c_str(), "w"));
-  if (file == NULL) {
-    return Status(error::FILE_FAILURE,
-                  "Cannot open file to write " + options().output_file_name);
-  }
-
-  LOG(INFO) << "Update media header (moov) and rewrite the file to '"
-            << options().output_file_name << "'.";
-
-  // Write ftyp, moov and sidx to output file.
-  std::unique_ptr<BufferWriter> buffer(new BufferWriter());
-  ftyp()->Write(buffer.get());
-  moov()->Write(buffer.get());
-
-  if (options().mp4_params.generate_sidx_in_media_segments)
-    vod_sidx_->Write(buffer.get());
-
-  Status status = buffer->WriteToFile(file.get());
-  if (!status.ok())
-    return status;
-
-  // Load the temp file and write to output file.
-  std::unique_ptr<File, FileCloser> temp_file(
-      File::Open(temp_file_name_.c_str(), "r"));
-  if (temp_file == NULL) {
-    return Status(error::FILE_FAILURE,
-                  "Cannot open file to read " + temp_file_name_);
-  }
-
-  // The target of 2nd stage of single segment segmentation.
-  const uint64_t re_segment_progress_target = progress_target() * 0.5;
-
-  const int kBufSize = 0x200000;  // 2MB.
-  std::unique_ptr<uint8_t[]> buf(new uint8_t[kBufSize]);
-  while (true) {
-    int64_t size = temp_file->Read(buf.get(), kBufSize);
-    if (size == 0) {
-      break;
-    } else if (size < 0) {
+  if (std::ifstream(options().output_file_name).good()) {
+    if (!File::Delete(options().output_file_name.c_str()))
       return Status(error::FILE_FAILURE,
-                    "Failed to read file " + temp_file_name_);
-    }
-    int64_t size_written = file->Write(buf.get(), size);
-    if (size_written != size) {
-      return Status(error::FILE_FAILURE,
-                    "Failed to write file " + options().output_file_name);
-    }
-    UpdateProgress(static_cast<double>(size) / temp_file->Size() *
-                   re_segment_progress_target);
+                    "Cannot delete already existing file " + options().output_file_name);
   }
-  if (!temp_file.release()->Close()) {
-    return Status(error::FILE_FAILURE, "Cannot close the temp file " +
-                                           temp_file_name_ + " after reading.");
-  }
-  if (!file.release()->Close()) {
-    return Status(
-        error::FILE_FAILURE,
-        "Cannot close file " + options().output_file_name +
-            ", possibly file permission issue or running out of disk space.");
-  }
+
+  // Rename temp file to output file.
+  int ret = std::rename(temp_file_name_.c_str(), options().output_file_name.c_str());
+  if (ret)
+    return Status(error::FILE_FAILURE,
+                  "Cannot rename temp file to " + options().output_file_name);
+
   SetComplete();
   return Status::OK;
 }
@@ -169,6 +121,18 @@ Status SingleSegmentSegmenter::DoFinalize() {
 Status SingleSegmentSegmenter::DoFinalizeSegment() {
   DCHECK(sidx());
   DCHECK(fragment_buffer());
+  if (first_segment_) {
+    DCHECK(ftyp());
+    DCHECK(moov());
+    std::unique_ptr<BufferWriter> buffer(new BufferWriter());
+    ftyp()->Write(buffer.get());
+    moov()->Write(buffer.get());
+    Status status = buffer->WriteToFile(temp_file_.get());
+    if (!status.ok())
+      return status;
+    first_segment_ = false;
+  }
+
   // sidx() contains pre-generated segment references with one reference per
   // fragment. In VOD, this segment is converted into a subsegment, i.e. one
   // reference, which contains all the fragments in sidx().

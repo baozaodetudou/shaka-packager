@@ -178,7 +178,9 @@ MP4MediaParser::MP4MediaParser()
     : state_(kWaitingForInit),
       decryption_key_source_(NULL),
       moof_head_(0),
-      mdat_tail_(0) {}
+      moof_count_(0),
+      mdat_tail_(0),
+      segment_count_(0) {}
 
 MP4MediaParser::~MP4MediaParser() {}
 
@@ -203,7 +205,9 @@ void MP4MediaParser::Reset() {
   queue_.Reset();
   runs_.reset();
   moof_head_ = 0;
+  moof_count_ = 0;
   mdat_tail_ = 0;
+  segment_count_ = 0;
 }
 
 bool MP4MediaParser::Flush() {
@@ -357,7 +361,12 @@ bool MP4MediaParser::ParseBox(bool* err) {
 
   if (reader->type() == FOURCC_moov) {
     *err = !ParseMoov(reader.get());
+  } else if (reader->type() == FOURCC_sidx) {
+    *err = !ParseSidx(reader.get());
   } else if (reader->type() == FOURCC_moof) {
+    moof_count_++;
+    fprintf(stdout, "\r%lld/%lld", moof_count_, segment_count_);
+    fflush(stdout);
     moof_head_ = queue_.head();
     *err = !ParseMoof(reader.get());
 
@@ -739,6 +748,15 @@ bool MP4MediaParser::ParseMoov(BoxReader* reader) {
   runs_.reset(new TrackRunIterator(moov_.get()));
   RCHECK(runs_->Init());
   ChangeState(kEmittingSamples);
+  return true;
+}
+
+bool MP4MediaParser::ParseSidx(BoxReader* reader) {
+  // Must already have initialization segment.
+  RCHECK(moov_.get());
+  SegmentIndex sidx;
+  RCHECK(sidx.Parse(reader));
+  segment_count_ = sidx.references.size();
   return true;
 }
 

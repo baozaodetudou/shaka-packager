@@ -48,6 +48,7 @@ class SingleSegmentSegmenter : public Segmenter {
   std::unique_ptr<SegmentIndex> vod_sidx_;
   std::string temp_file_name_;
   std::unique_ptr<File, FileCloser> temp_file_;
+  bool first_segment_;
 
   DISALLOW_COPY_AND_ASSIGN(SingleSegmentSegmenter);
 };
