@@ -50,6 +50,8 @@ class MP4MediaParser : public MediaParser {
   /// @return true if successful, false otherwise.
   bool LoadMoov(const std::string& file_path);
 
+  void SetFileSize(const int64_t file_size);
+
  private:
   enum State {
     kWaitingForInit,
@@ -105,6 +107,8 @@ class MP4MediaParser : public MediaParser {
   // Parsed from the size of the references field in the sidx box.
   int64_t segment_count_;
 
+  int64_t size_read_;
+  int64_t file_size_;
   std::unique_ptr<Movie> moov_;
   std::unique_ptr<TrackRunIterator> runs_;
 

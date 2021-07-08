@@ -180,7 +180,9 @@ MP4MediaParser::MP4MediaParser()
       moof_head_(0),
       moof_count_(0),
       mdat_tail_(0),
-      segment_count_(0) {}
+      segment_count_(0),
+      size_read_(0),
+      file_size_(0) {}
 
 MP4MediaParser::~MP4MediaParser() {}
 
@@ -208,6 +210,12 @@ void MP4MediaParser::Reset() {
   moof_count_ = 0;
   mdat_tail_ = 0;
   segment_count_ = 0;
+  size_read_ = 0;
+  file_size_ = 0;
+}
+
+void MP4MediaParser::SetFileSize(const int64_t file_size) {
+  file_size_ = file_size;
 }
 
 bool MP4MediaParser::Flush() {
@@ -219,6 +227,15 @@ bool MP4MediaParser::Flush() {
 
 bool MP4MediaParser::Parse(const uint8_t* buf, int size) {
   DCHECK_NE(state_, kWaitingForInit);
+  size_read_ += size;
+  if (segment_count_ == 0 && size_read_ > 65536) {
+    // only print by size if we haven't read a sidx box after the first pass
+    // (first pass is always a read of 65536 bytes)
+    std::cout << '\r' << size_read_ << '/' << file_size_ << std::flush;
+    if (size_read_ == file_size_) {
+      std::cout << std::endl; // one last buffer flush
+    }
+  }
 
   if (state_ == kError)
     return false;
@@ -365,8 +382,9 @@ bool MP4MediaParser::ParseBox(bool* err) {
     *err = !ParseSidx(reader.get());
   } else if (reader->type() == FOURCC_moof) {
     moof_count_++;
-    fprintf(stdout, "\r%lld/%lld", moof_count_, segment_count_);
-    fflush(stdout);
+    if (segment_count_ > 0) {
+      std::cout << '\r' << moof_count_ << '/' << segment_count_ << std::flush;
+    }
     moof_head_ = queue_.head();
     *err = !ParseMoof(reader.get());
 
@@ -377,6 +395,10 @@ bool MP4MediaParser::ParseBox(bool* err) {
     return !(*err);
   } else {
     VLOG(2) << "Skipping top-level box: " << FourCCToString(reader->type());
+  }
+
+  if (segment_count_ > 0 && moof_count_ == segment_count_) {
+    std::cout << std::endl;
   }
 
   queue_.Pop(static_cast<int>(reader->size()));

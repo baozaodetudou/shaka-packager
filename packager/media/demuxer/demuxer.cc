@@ -160,6 +160,12 @@ Status Demuxer::InitializeParser() {
                   "Cannot open file for reading " + file_name_);
   }
 
+  const int64_t media_file_size = File::GetFileSize(file_name_.c_str());
+  if (media_file_size < 0) {
+    return Status(error::FILE_FAILURE,
+                  "Cannot get file size " + file_name_);
+  }
+
   // Read enough bytes before detecting the container.
   int64_t bytes_read = 0;
   while (static_cast<size_t>(bytes_read) < kInitBufSize) {
@@ -220,6 +226,7 @@ Status Demuxer::InitializeParser() {
   // Handle trailing 'moov'.
   if (container_name_ == CONTAINER_MOV &&
       File::IsLocalRegularFile(file_name_.c_str())) {
+    static_cast<mp4::MP4MediaParser*>(parser_.get())->SetFileSize(media_file_size);
     // TODO(kqyang): Investigate whether we can reuse the existing file
     // descriptor |media_file_| instead of opening the same file again.
     static_cast<mp4::MP4MediaParser*>(parser_.get())->LoadMoov(file_name_);
