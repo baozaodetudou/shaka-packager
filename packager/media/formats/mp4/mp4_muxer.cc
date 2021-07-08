@@ -178,7 +178,7 @@ Status MP4Muxer::Finalize() {
     return segmenter_finalized;
 
   FireOnMediaEndEvent();
-  LOG(INFO) << "MP4 file '" << options().output_file_name << "' finalized.";
+  // LOG(INFO) << "MP4 file '" << options().output_file_name << "' finalized.";
   return Status::OK;
 }
 

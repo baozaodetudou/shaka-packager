@@ -86,7 +86,7 @@ void Demuxer::SetKeySource(std::unique_ptr<KeySource> key_source) {
 }
 
 Status Demuxer::Run() {
-  LOG(INFO) << "Demuxer::Run() on file '" << file_name_ << "'.";
+  // LOG(INFO) << "Demuxer::Run() on file '" << file_name_ << "'.";
   Status status = InitializeParser();
   // ParserInitEvent callback is called after a few calls to Parse(), which sets
   // up the streams. Only after that, we can verify the outputs below.
@@ -152,7 +152,7 @@ Status Demuxer::InitializeParser() {
   DCHECK(!media_file_);
   DCHECK(!all_streams_ready_);
 
-  LOG(INFO) << "Initialize Demuxer for file '" << file_name_ << "'.";
+  // LOG(INFO) << "Initialize Demuxer for file '" << file_name_ << "'.";
 
   media_file_ = File::Open(file_name_.c_str(), "r");
   if (!media_file_) {
