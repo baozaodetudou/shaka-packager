@@ -696,11 +696,11 @@ int64_t TrackRunIterator::GetTimestampAdjustment(const Movie& movie,
     if (traf)
       decode_time = traf->decode_time.decode_time;
     if (composition_offset != 0 && decode_time == 0) {
-      LOG(WARNING) << "Seeing non-zero composition offset "
+      DVLOG(4) << "Seeing non-zero composition offset "
                    << composition_offset
                    << ". An EditList is probably missing.";
       if (FLAGS_mp4_reset_initial_composition_offset_to_zero) {
-        LOG(WARNING)
+        DVLOG(4)
             << "Adjusting timestamps by " << -composition_offset
             << ". Please file a bug to "
                "https://github.com/google/shaka-packager/issues if you "

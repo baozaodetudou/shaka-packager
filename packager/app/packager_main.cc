@@ -548,11 +548,11 @@ int PackagerMain(int argc, char** argv) {
   }
   status = packager.Run();
   if (!status.ok()) {
-    LOG(ERROR) << "Packaging Error: " << status.ToString();
+    LOG(ERROR) << "Packaging Error: " << status.ToString() << '\n';
     return kPackagingFailed;
   }
   if (!FLAGS_quiet)
-    printf("Packaging completed successfully.\n");
+    printf("Packaging completed successfully.\n\n");
   return kSuccess;
 }
 

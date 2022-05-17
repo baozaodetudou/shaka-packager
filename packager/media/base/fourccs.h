@@ -150,6 +150,10 @@ enum FourCC : uint32_t {
   FOURCC_urn = 0x75726e20,  // "urn "
   FOURCC_uuid = 0x75756964,
   FOURCC_vide = 0x76696465,
+  // Apple Closed captions, not implemented in shaka so 
+  // just needed defined to adequately skip instead of
+  // throwing an abstract warning
+  FOURCC_clcp = 0x636c6370, 
   FOURCC_vlab = 0x766c6162,
   FOURCC_vmhd = 0x766d6864,
   FOURCC_vp08 = 0x76703038,

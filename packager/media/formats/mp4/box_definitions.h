@@ -27,6 +27,7 @@ enum TrackType {
   kHint,
   kText,
   kSubtitle,
+  kClosedCaption,
 };
 
 class BoxBuffer;

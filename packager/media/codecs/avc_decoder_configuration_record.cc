@@ -88,7 +88,7 @@ bool AVCDecoderConfigurationRecord::ParseInternal() {
     uint8_t sps_ext_count;
     if (!reader.Read1(&chroma_format_) || !reader.Read1(&bit_depth_luma_minus8_) ||
         !reader.Read1(&bit_depth_chroma_minus8_) || !reader.Read1(&sps_ext_count)) {
-       LOG(WARNING) << "Insufficient bits in bitstream for given AVC profile";
+       LOG(WARNING) << "Insufficient bits in bitstream for given AVC profile\n";
        return true;
     }
     chroma_format_ &= 0x3;

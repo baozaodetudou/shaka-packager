@@ -129,10 +129,8 @@ bool BoxReader::ReadHeader(bool* err) {
 
   // The box should have at least the size of what have been parsed.
   if (size < pos()) {
-    LOG(ERROR) << base::StringPrintf("Box '%s' with size (%" PRIu64
-                                     ") is invalid.",
-                                     FourCCToString(type_).c_str(),
-                                     size);
+    LOG(ERROR) << base::StringPrintf("Box with size (%" PRIu64
+                                     ") is invalid.", size);
     *err = true;
     return false;
   }
@@ -140,10 +138,9 @@ bool BoxReader::ReadHeader(bool* err) {
   // 'mdat' box could have a 64-bit size; other boxes should be very small.
   if (size > static_cast<uint64_t>(std::numeric_limits<int32_t>::max()) &&
       type_ != FOURCC_mdat) {
-    LOG(ERROR) << base::StringPrintf("Box '%s' size (%" PRIu64
-                                     ") is too large.",
-                                     FourCCToString(type_).c_str(),
-                                     size);
+    LOG(ERROR) << base::StringPrintf("Box size (%" PRIu64
+                                     ") is too large. Most likely attempting to decrypt an already decrypted file.",
+                                     size); // the box type string representation is always gibberish anyway, so don't print it out
     *err = true;
     return false;
   }
