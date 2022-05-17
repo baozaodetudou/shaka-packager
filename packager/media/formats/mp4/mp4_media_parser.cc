@@ -5,7 +5,9 @@
 #include "packager/media/formats/mp4/mp4_media_parser.h"
 
 #include <algorithm>
+#include <limits>
 
+#include "packager/extra/indicators.hpp"
 #include "packager/base/callback.h"
 #include "packager/base/callback_helpers.h"
 #include "packager/base/logging.h"
