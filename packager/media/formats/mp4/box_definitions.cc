@@ -110,6 +110,8 @@ TrackType FourCCToTrackType(FourCC fourcc) {
       return kText;
     case FOURCC_subt:
       return kSubtitle;
+    case FOURCC_clcp:
+      return kClosedCaption;
     default:
       return kInvalid;
   }
@@ -125,6 +127,8 @@ FourCC TrackTypeToFourCC(TrackType track_type) {
       return FOURCC_text;
     case kSubtitle:
       return FOURCC_subt;
+    case kClosedCaption:
+      return FOURCC_clcp;
     default:
       return FOURCC_NULL;
   }
@@ -637,8 +641,11 @@ bool SampleDescription::ReadWriteInternal(BoxBuffer* buffer) {
     case kSubtitle:
       count = static_cast<uint32_t>(text_entries.size());
       break;
+    case kClosedCaption:
+      DVLOG(4) << "Apple Closed captions not implemented, skipping.";
+      break; 
     default:
-      NOTIMPLEMENTED() << "SampleDecryption type " << type
+      NOTIMPLEMENTED() << " SampleDecryption type " << type
                        << " is not handled. Skipping.";
   }
   RCHECK(ReadWriteHeaderInternal(buffer) && buffer->ReadWriteUInt32(&count));
@@ -1338,6 +1345,9 @@ size_t HandlerReference::ComputeSizeInternal() {
       box_size += sizeof(kSubtitleHandlerName);
       break;
     case FOURCC_ID32:
+      break;
+    case FOURCC_clcp:
+      DVLOG(4) << "Apple Closed captions not implemented, skipping.";
       break;
     default:
       NOTIMPLEMENTED();
@@ -2248,6 +2258,9 @@ bool MediaInformation::ReadWriteInternal(BoxBuffer* buffer) {
     case kSubtitle:
       RCHECK(buffer->TryReadWriteChild(&sthd));
       break;
+    case kClosedCaption:
+      DVLOG(4) << "Apple Closed captions not implemented, skipping.";
+      break;
     default:
       NOTIMPLEMENTED();
   }
@@ -2271,6 +2284,9 @@ size_t MediaInformation::ComputeSizeInternal() {
     case kSubtitle:
       box_size += sthd.ComputeSize();
       break;
+    case kClosedCaption:
+      DVLOG(4) << "Apple Closed captions not implemented, skipping.";
+      break;  
     default:
       NOTIMPLEMENTED();
   }
