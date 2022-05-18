@@ -9,5 +9,5 @@
   - Added newlines to some log messages to make things a little prettier.
 
 ## Issues:
-  - The `■` character used in progress bar will be displayed incorrectly in shells that don't support unicode. In that case you'd have to change it to some printable ASCII equivalent (in `mp4_media_parser.cc`) and build from source, i.e. `=` for fill, `>` for lead.
+  - The ■ character used in progress bar will be displayed incorrectly in shells that don't support unicode. In that case you'd have to change it to some printable ASCII equivalent (in `mp4_media_parser.cc`) and build from source, i.e. `=` for fill, `>` for lead.
   - Doesn't work as intended as a standalone executable (results in dozens of progress bars being generated each on a new line). Likely because of using `if` instead of `while` in the relevant functions. It is that way because based on my tests the latter wouldn't work properly on Linux. The intended use is inside vt which runs it with subprocess.run, and that works perfectly on either OS, so I'm not going to attempt to fix this part further. If someone manages to get it working properly for all cases, please submit a PR.
