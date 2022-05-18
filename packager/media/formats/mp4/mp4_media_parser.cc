@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <limits>
+#include <cmath>
 
 #include "packager/extra/indicators.hpp"
 #include "packager/base/callback.h"
@@ -229,18 +230,41 @@ bool MP4MediaParser::Flush() {
 
 bool MP4MediaParser::Parse(const uint8_t* buf, int size) {
   DCHECK_NE(state_, kWaitingForInit);
+  
+  // initializing progress bar
+  using namespace indicators;
+  indicators::ProgressBar bar{
+  option::BarWidth{75},
+  option::Start{"["},
+  option::End{"]"},
+  option::Fill{"■"},
+  option::Lead{"■"},
+  option::Remainder{"-"},
+  option::ForegroundColor{Color::blue},
+  option::ShowPercentage{true},
+  option::FontStyles{std::vector<FontStyle>{FontStyle::bold}}
+  };
+
   size_read_ += size;
-  if (segment_count_ == 0 && size_read_ > 65536) {
-    // only print by size if we haven't read a sidx box after the first pass
+  if (segment_count_ == 0 && size_read_ > 65536) 
+  {
+    // only show by size if we haven't read a sidx box after the first pass
     // (first pass is always a read of 65536 bytes)
-    std::cout << '\r' << size_read_ << '/' << file_size_ << std::flush;
-    if (size_read_ == file_size_) {
-      std::cout << std::endl; // one last buffer flush
+    if (size_read_ < file_size_)
+    {
+        show_console_cursor(false);
+        bar.set_progress(((float)size_read_ / file_size_)*100);
+    }   
+    if (size_read_ == file_size_ || file_size_ - size_read_ < 100) // allow for ~100 bytes difference
+    {
+        show_console_cursor(true);
+        bar.set_progress(100);
+        std::cout << std::endl;
     }
   }
 
   if (state_ == kError)
-    return false;
+    return false;  
 
   queue_.Push(buf, size);
 
@@ -261,6 +285,7 @@ bool MP4MediaParser::Parse(const uint8_t* buf, int size) {
 
   if (err) {
     DLOG(ERROR) << "Error while parsing MP4";
+    show_console_cursor(true); // repeat, don't wanna get stuck with a broken cursor if something goes south
     moov_.reset();
     Reset();
     ChangeState(kError);
@@ -383,24 +408,59 @@ bool MP4MediaParser::ParseBox(bool* err) {
   } else if (reader->type() == FOURCC_sidx) {
     *err = !ParseSidx(reader.get());
   } else if (reader->type() == FOURCC_moof) {
+    
+    // initializing progress bar
+    using namespace indicators;
+    indicators::ProgressBar bar{
+    option::BarWidth{75},
+    option::Start{"["},
+    option::End{"]"},
+    option::Fill{"■"},
+    option::Lead{"■"},
+    option::Remainder{"-"},
+    /* somehow displays different colors depending on the OS
+    i.e. cyan is light blue on windows, actual cyan on linux,
+    blue is light blue on linux, dark blue on windows...    
+    so just set to blue as it looks the best overall on both */
+    option::ForegroundColor{Color::blue}, 
+    option::ShowPercentage{true},
+    option::FontStyles{std::vector<FontStyle>{FontStyle::bold}}
+    };
+
+    /* can't set elapsed time via progress bar, it is expecting to be ran inside a while loop,
+    but due to how this is called it has to be inside a regular if, which makes elapsed time always 0. 
+    No matter as it wasn't accurate anyway, consistently about 1-2s off vs. what perf_counter_ns in python reported */
+    
     moof_count_++;
-    if (segment_count_ > 0) {
-      std::cout << '\r' << moof_count_ << '/' << segment_count_ << std::flush;
+    if (segment_count_ > 0)
+    {
+        if (moof_count_ < segment_count_) 
+        {
+            show_console_cursor(false);
+            bar.set_progress(((float)moof_count_/segment_count_)*100);
+        }    
+        if (moof_count_ == segment_count_)
+        {
+            show_console_cursor(true);
+            bar.set_progress(100);
+            std::cout << std::endl;
+        }
     }
+
     moof_head_ = queue_.head();
     *err = !ParseMoof(reader.get());
 
-    // Return early to avoid evicting 'moof' data from queue. Auxiliary info may
-    // be located anywhere in the file, including inside the 'moof' itself.
-    // (Since 'default-base-is-moof' is mandated, no data references can come
-    // before the head of the 'moof', so keeping this box around is sufficient.)
+    /* Return early to avoid evicting 'moof' data from queue. Auxiliary info may
+     be located anywhere in the file, including inside the 'moof' itself.
+     (Since 'default-base-is-moof' is mandated, no data references can come
+     before the head of the 'moof', so keeping this box around is sufficient.) */
+
     return !(*err);
-  } else {
-    VLOG(2) << "Skipping top-level box: " << FourCCToString(reader->type());
   }
 
-  if (segment_count_ > 0 && moof_count_ == segment_count_) {
-    std::cout << std::endl;
+  else 
+  {
+    VLOG(2) << "Skipping top-level box: " << FourCCToString(reader->type());
   }
 
   queue_.Pop(static_cast<int>(reader->size()));
