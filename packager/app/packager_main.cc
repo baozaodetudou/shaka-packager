@@ -552,7 +552,7 @@ int PackagerMain(int argc, char** argv) {
     return kPackagingFailed;
   }
   if (!FLAGS_quiet)
-    printf("Packaging completed successfully.\n\n");
+    printf("Decrypted successfully.\n");
   return kSuccess;
 }
 

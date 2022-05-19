@@ -6,7 +6,11 @@
 
 #include <algorithm>
 #include <limits>
-#include <cmath>
+#include <signal.h>
+
+#if __has_include("windows.h") // need a recent compiler to support this
+# include <windows.h> // for console codepage
+#endif
 
 #include "packager/extra/indicators.hpp"
 #include "packager/base/callback.h"
@@ -228,19 +232,37 @@ bool MP4MediaParser::Flush() {
   return true;
 }
 
+void exit_handler(int signal) 
+{
+    // prevents the shell from breaking after sudden termination with ctrl+c and such
+    indicators::show_console_cursor(true);
+    std::cout << termcolor::reset;
+    std::cout << std::endl;
+    exit(signal);
+}
+
 bool MP4MediaParser::Parse(const uint8_t* buf, int size) {
   DCHECK_NE(state_, kWaitingForInit);
+
+  #ifdef WIN32
+  SetConsoleOutputCP(CP_UTF8);
+  #endif
   
+  // set handler
+  signal(SIGTERM, exit_handler);
+  signal(SIGSEGV, exit_handler);
+  signal(SIGINT, exit_handler);
+
   // initializing progress bar
   using namespace indicators;
   indicators::ProgressBar bar{
   option::BarWidth{75},
-  option::Start{"["},
+  option::Start{"\r["},
   option::End{"]"},
   option::Fill{"■"},
   option::Lead{"■"},
   option::Remainder{"-"},
-  option::ForegroundColor{Color::blue},
+  option::ForegroundColor{Color::blue}, // looks invisible in default in default powershell, but idk maybe the bg color of it can be changed
   option::ShowPercentage{true},
   option::FontStyles{std::vector<FontStyle>{FontStyle::bold}}
   };
@@ -285,7 +307,6 @@ bool MP4MediaParser::Parse(const uint8_t* buf, int size) {
 
   if (err) {
     DLOG(ERROR) << "Error while parsing MP4";
-    show_console_cursor(true); // repeat, don't wanna get stuck with a broken cursor if something goes south
     moov_.reset();
     Reset();
     ChangeState(kError);
@@ -408,12 +429,24 @@ bool MP4MediaParser::ParseBox(bool* err) {
   } else if (reader->type() == FOURCC_sidx) {
     *err = !ParseSidx(reader.get());
   } else if (reader->type() == FOURCC_moof) {
-    
+
+    /* want this on windows for idiots that don't use the utf-8 codepage,
+    will set the codepage of the shell that executes the packager to utf-8
+    even if system cp is different */  
+    #ifdef WIN32
+    SetConsoleOutputCP(CP_UTF8);
+    #endif
+
+    // set handler
+    signal(SIGTERM, exit_handler);
+    signal(SIGSEGV, exit_handler);
+    signal(SIGINT, exit_handler);   
+        
     // initializing progress bar
     using namespace indicators;
     indicators::ProgressBar bar{
     option::BarWidth{75},
-    option::Start{"["},
+    option::Start{"\r["}, // need \r to avoid generating dozens of bars on windows
     option::End{"]"},
     option::Fill{"■"},
     option::Lead{"■"},
