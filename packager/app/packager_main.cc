@@ -7,6 +7,7 @@
 #include <gflags/gflags.h>
 #include <iostream>
 
+#include "packager/extra/helpers.hpp"
 #include "packager/app/ad_cue_generator_flags.h"
 #include "packager/app/crypto_flags.h"
 #include "packager/app/hls_flags.h"
@@ -548,7 +549,9 @@ int PackagerMain(int argc, char** argv) {
   }
   status = packager.Run();
   if (!status.ok()) {
+    error_handler();
     LOG(ERROR) << "Packaging Error: " << status.ToString() << '\n';
+    std::cout << termcolor::reset;
     return kPackagingFailed;
   }
   if (!FLAGS_quiet)

@@ -6,13 +6,8 @@
 
 #include <algorithm>
 #include <limits>
-#include <signal.h>
 
-#if __has_include("windows.h") // need a recent compiler to support this
-# include <windows.h> // for console codepage
-#endif
-
-#include "packager/extra/indicators.hpp"
+#include "packager/extra/helpers.hpp"
 #include "packager/base/callback.h"
 #include "packager/base/callback_helpers.h"
 #include "packager/base/logging.h"
@@ -232,46 +227,43 @@ bool MP4MediaParser::Flush() {
   return true;
 }
 
-void exit_handler(int signal) 
-{
-    // prevents the shell from breaking after sudden termination with ctrl+c and such
-    indicators::show_console_cursor(true);
-    std::cout << termcolor::reset;
-    std::cout << std::endl;
-    exit(signal);
-}
-
 bool MP4MediaParser::Parse(const uint8_t* buf, int size) {
   DCHECK_NE(state_, kWaitingForInit);
 
-  #ifdef WIN32
-  SetConsoleOutputCP(CP_UTF8);
-  #endif
-  
-  // set handler
-  signal(SIGTERM, exit_handler);
-  signal(SIGSEGV, exit_handler);
-  signal(SIGINT, exit_handler);
+  set_console_codepage();
+  set_handlers();
 
-  // initializing progress bar
-  using namespace indicators;
-  indicators::ProgressBar bar{
-  option::BarWidth{75},
-  option::Start{"\r["},
-  option::End{"]"},
-  option::Fill{"■"},
-  option::Lead{"■"},
-  option::Remainder{"-"},
-  option::ForegroundColor{Color::blue}, // looks invisible in default in default powershell, but idk maybe the bg color of it can be changed
-  option::ShowPercentage{true},
-  option::FontStyles{std::vector<FontStyle>{FontStyle::bold}}
+  /* can't figure out how to return a ProgressBar instance from a function
+     in the helpers header file without causing compiler errors, 
+     so creating one here... */
+
+  ProgressBar bar 
+  {
+    option::BarWidth{75},
+    option::Start{"\r["}, // need \r to avoid generating dozens of bars on windows
+    option::End{"]"},
+    option::Fill{"■"},
+    option::Lead{"■"},
+    option::Remainder{"-"},
+    /* somehow displays different colors depending on the OS
+       i.e. cyan is light blue on windows, actual cyan on linux,
+       blue is light blue on linux, dark blue on windows...    
+       so just set to blue as it looks the best overall on both */
+    option::ForegroundColor{Color::magenta}, // different color when going by filesize
+    option::ShowPercentage{true},
+    option::FontStyles{std::vector<FontStyle>{FontStyle::bold}}
   };
+
+  /* can't set elapsed time via progress bar, it is expecting to be ran inside a while loop,
+     but due to how this is called it has to be inside a regular if, which makes elapsed time always 0. 
+     No matter as it wasn't accurate anyway, consistently about 1-2s off vs. what perf_counter_ns in python reported */
 
   size_read_ += size;
   if (segment_count_ == 0 && size_read_ > 65536) 
   {
-    // only show by size if we haven't read a sidx box after the first pass
-    // (first pass is always a read of 65536 bytes)
+    /* only show by size if we haven't read a sidx box after the first pass
+      (first pass is always a read of 65536 bytes) */
+    DVLOG(3) << "No sidx boxes found, showing progress by size";
     if (size_read_ < file_size_)
     {
         show_console_cursor(false);
@@ -430,40 +422,21 @@ bool MP4MediaParser::ParseBox(bool* err) {
     *err = !ParseSidx(reader.get());
   } else if (reader->type() == FOURCC_moof) {
 
-    /* want this on windows for idiots that don't use the utf-8 codepage,
-    will set the codepage of the shell that executes the packager to utf-8
-    even if system cp is different */  
-    #ifdef WIN32
-    SetConsoleOutputCP(CP_UTF8);
-    #endif
+    set_console_codepage();
+    set_handlers();
 
-    // set handler
-    signal(SIGTERM, exit_handler);
-    signal(SIGSEGV, exit_handler);
-    signal(SIGINT, exit_handler);   
-        
-    // initializing progress bar
-    using namespace indicators;
-    indicators::ProgressBar bar{
-    option::BarWidth{75},
-    option::Start{"\r["}, // need \r to avoid generating dozens of bars on windows
-    option::End{"]"},
-    option::Fill{"■"},
-    option::Lead{"■"},
-    option::Remainder{"-"},
-    /* somehow displays different colors depending on the OS
-    i.e. cyan is light blue on windows, actual cyan on linux,
-    blue is light blue on linux, dark blue on windows...    
-    so just set to blue as it looks the best overall on both */
-    option::ForegroundColor{Color::blue}, 
-    option::ShowPercentage{true},
-    option::FontStyles{std::vector<FontStyle>{FontStyle::bold}}
+    ProgressBar bar {
+      option::BarWidth{75},
+      option::Start{"\r["},
+      option::End{"]"},
+      option::Fill{"■"},
+      option::Lead{"■"},
+      option::Remainder{"-"},
+      option::ForegroundColor{Color::blue},
+      option::ShowPercentage{true},
+      option::FontStyles{std::vector<FontStyle>{FontStyle::bold}}
     };
 
-    /* can't set elapsed time via progress bar, it is expecting to be ran inside a while loop,
-    but due to how this is called it has to be inside a regular if, which makes elapsed time always 0. 
-    No matter as it wasn't accurate anyway, consistently about 1-2s off vs. what perf_counter_ns in python reported */
-    
     moof_count_++;
     if (segment_count_ > 0)
     {

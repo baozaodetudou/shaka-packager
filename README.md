@@ -12,5 +12,4 @@
   - Currently none.
   
 ## TODO:
-  - Move the repeating code into a single function or some such.
   - [Global] Remove as many unnecessary features as possible, essentially turning this into shaka-decrypter.
