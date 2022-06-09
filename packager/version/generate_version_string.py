@@ -13,16 +13,14 @@ import subprocess
 
 if __name__ == '__main__':
   try:
-    version_tag = subprocess.check_output('git tag --points-at HEAD',
-        stderr=subprocess.STDOUT, shell=True).rstrip()
+    version_tag = subprocess.check_output('git ls-remote --tags --refs --sort="version:refname" https://github.com/hldr4/shaka-packager-mod.git', stderr=subprocess.STDOUT, shell=True).rstrip().decode()
+    version_tag = version_tag.split('\t')[-1].split('/')[-1]
   except subprocess.CalledProcessError as e:
-    # git tag --points-at is not supported in old versions of git. Just ignore
-    # version_tag in this case.
     version_tag = None
-
+  
   try:
     version_hash = subprocess.check_output('git rev-parse --short HEAD',
-        stderr=subprocess.STDOUT, shell=True).rstrip()
+        stderr=subprocess.STDOUT, shell=True).rstrip().decode()
   except subprocess.CalledProcessError as e:
     version_hash = 'unknown-version'
 

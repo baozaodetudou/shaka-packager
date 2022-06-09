@@ -23,7 +23,7 @@ const char kPackagerVersion[] = PACKAGER_VERSION "-debug";
 const char kPackagerVersion[] = "";
 #endif  // #if defined(PACKAGER_VERSION)
 
-const char kPackagerGithubUrl[] = "https://github.com/google/shaka-packager";
+const char kPackagerGithubUrl[] = "https://github.com/hldr4/shaka-packager-mod";
 
 class Version {
  public:
